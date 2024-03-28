@@ -9,8 +9,6 @@ import (
 
 // env Структура для хранения переменных среды
 type env struct {
-	Host          string
-	Port          string
 	DbHost        string
 	DbPort        string
 	DbUser        string
@@ -30,8 +28,6 @@ var Env env
 // CheckFlagEnv Метод проверяющий флаги
 func CheckFlagEnv() {
 
-	var host string
-	var port string
 	var dbHost string
 	var dbPort string
 	var dbUser string
@@ -51,8 +47,6 @@ func CheckFlagEnv() {
 		panic(err)
 	}
 
-	var flagHost = flag.String("h", "", "host")
-	var flagPort = flag.String("p", "", "port")
 	var flagDbHost = flag.String("dh", "", "dbHost")
 	var flagDbPort = flag.String("dp", "", "dbPort")
 	var flagDbUser = flag.String("du", "", "dbUser")
@@ -62,18 +56,6 @@ func CheckFlagEnv() {
 	var flagSecretKey = flag.String("ske", "", "secret key for jwt")
 
 	flag.Parse()
-
-	if os.Getenv("HOST") != "" {
-		host = os.Getenv("HOST")
-	} else {
-		host = "localhost"
-	}
-
-	if os.Getenv("PORT") != "" {
-		port = os.Getenv("PORT")
-	} else {
-		port = "8080"
-	}
 
 	if os.Getenv("DB_HOST") != "" {
 		dbHost = os.Getenv("DB_HOST")
@@ -141,14 +123,6 @@ func CheckFlagEnv() {
 		secretKey = ""
 	}
 
-	if *flagHost != "" {
-		host = *flagHost
-	}
-
-	if *flagPort != "" {
-		port = *flagPort
-	}
-
 	if *flagDbHost != "" {
 		dbHost = *flagDbHost
 	}
@@ -178,8 +152,6 @@ func CheckFlagEnv() {
 	}
 
 	Env = env{
-		Host:          host,
-		Port:          port,
 		DbHost:        dbHost,
 		DbPort:        dbPort,
 		DbUser:        dbUser,
