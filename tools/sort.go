@@ -19,7 +19,7 @@ func Sort(orders [][]model.Sborka) {
 		}
 	}
 
-	for _, char := range "ABCDEFGH" {
+	for _, char := range "АБВГДЕЁЖЗИКЛМНОПРСТ" {
 		if v, ok := ans[string(char)]; ok {
 			for _, va := range v {
 				response[string(char)] = append(response[string(char)], va)
