@@ -10,7 +10,6 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/sirupsen/logrus v1.9.3
 	gopkg.in/gormigrate.v1 v1.6.0
-	gorm.io/gorm v1.25.8
 )
 
 require (
