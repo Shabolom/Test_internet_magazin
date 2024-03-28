@@ -84,7 +84,7 @@ func (r *Repo) CheckAndUpdateOPalette(productID, count, orderID int) error {
 
 	err := config.DB.
 		Table("palettes_products").
-		Where("product_id =1").
+		Where("product_id =?", productID).
 		Find(&countProducts).
 		Error
 
