@@ -3,34 +3,32 @@ package tools
 import (
 	"Arkadiy_2Service/iternal/model"
 	"fmt"
+	"sort"
 )
 
-func Sort(orders [][]model.Sborka) {
-	ans := make(map[string][]model.Sborka)
-	response := make(map[string][]model.Sborka)
+func Sort(orders [][]model.Assemblings) {
+	response := make(map[string][]model.Assemblings)
 
 	for _, g := range orders {
 		for _, gg := range g {
-			if _, ok := ans[gg.Palette]; !ok {
-				ans[gg.Palette] = append(ans[gg.Palette])
+			if _, ok := response[gg.Palette]; !ok {
+				response[gg.Palette] = append(response[gg.Palette])
 			}
 
-			ans[gg.Palette] = append(ans[gg.Palette], gg)
+			response[gg.Palette] = append(response[gg.Palette], gg)
 		}
 	}
 
-	for _, char := range "АБВГДЕЁЖЗИКЛМНОПРСТ" {
-		if v, ok := ans[string(char)]; ok {
-			for _, va := range v {
-				response[string(char)] = append(response[string(char)], va)
-			}
-		}
+	keys := make([]string, 0, len(response))
+	for k := range response {
+		keys = append(keys, k)
 	}
+	sort.Strings(keys)
 
-	for palette, data := range response {
+	for _, palette := range keys {
 		fmt.Println("___________", palette, "_____________")
-		for _, v := range data {
-			fmt.Println(fmt.Sprintf("id заказа %v | id товара %v | наименование %v | колличество %v | стеллаж %v", v.OrderID, v.ProductID, v.ProductName, v.Count, v.Palette))
+		for _, v := range response[palette] {
+			fmt.Println(fmt.Sprintf("id заказа: %v | id товара: %v | наименование: %v | колличество: %v | стеллаж: %v", v.OrderID, v.ProductID, v.ProductName, v.Count, v.Palette))
 		}
 	}
 

@@ -17,65 +17,6 @@ func NewRepo() *Repo {
 	return &Repo{}
 }
 
-//func (r *Repo) GetOdder(orderID int) (domain.Order, error) {
-//	var order domain.Order
-//
-//	err := config.DB.
-//		Where("id=?", orderID).
-//		Find(&order).
-//		Error
-//	if err != nil {
-//		return domain.Order{}, err
-//	}
-//
-//	return order, nil
-//}
-//
-//func (r *Repo) CheckProducts(ordersNumber []int) error {
-//	var ord []model.Sborka
-//	var orders [][]model.Sborka
-//
-//	for _, order := range ordersNumber {
-//		err := config.DB.Table("orders_products op").
-//			Joins("JOIN products p ON op.product_id = p.id AND (op.order_id =?)", order).
-//			Joins("JOIN palettes_products pp ON pp.product_id = p.id AND (pp.count >= op.count )").
-//			Joins("JOIN palettes pa ON pa.id = pp.palette_id").
-//			Select("op.product_id as product_id, op.order_id order_id, p.name product_name, op.count as count, pa.name as palette, pp.status as palette_status").
-//			Order("pp.status DESC, pa.name DESC").
-//			Scan(&ord).
-//			Error
-//		if err != nil {
-//			return err
-//		}
-//
-//		orders = append(orders, ord)
-//	}
-//
-//	//responseOrders := tools.Sort(orders)
-//	//err := r.UpdatePalettes(responseOrders)
-//	//if err != nil {
-//	//	return err
-//	//}
-//
-//	return nil
-//}
-
-func (r *Repo) UpdatePalettes(responseOrders map[string][]model.Sborka) error {
-	for key, value := range responseOrders {
-		for _, order := range value {
-			err := config.DB.
-				Table("palettes_products").
-				Where("name =? AND product_id =?", key, order.ProductID).
-				Update("count -?", order.Count).
-				Error
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (r *Repo) CheckAndUpdateOPalette(productID, count, orderID int) error {
 	var pp domain.PalettesProducts
 	var countProducts []domain.PalettesProducts
@@ -243,8 +184,8 @@ func (r *Repo) PostOrdersProducts(orders []model.Order) error {
 }
 
 func (r *Repo) TakeOrders(orders []int) error {
-	var collectedOrder []model.Sborka
-	var collectedOrders [][]model.Sborka
+	var collectedOrder []model.Assemblings
+	var collectedOrders [][]model.Assemblings
 
 	tx := config.DB.Begin()
 
