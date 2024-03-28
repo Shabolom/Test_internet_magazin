@@ -273,3 +273,6 @@ func Sort(orders [][]model.Assemblings) {
 
 }
 ```
+# **Схема DB**
+
+![схема бв.png]()
