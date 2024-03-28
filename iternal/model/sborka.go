@@ -1,6 +1,6 @@
 package model
 
-type Sborka struct {
+type Assemblings struct {
 	OrderID     int
 	ProductID   int
 	ProductName string
