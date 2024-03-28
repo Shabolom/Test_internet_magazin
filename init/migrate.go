@@ -96,7 +96,7 @@ func Migrate() {
 			// id всех миграций кторые были проведены
 			ID: palettesProducts.String(),
 			Migrate: func(tx *gorm.DB) error {
-				err := tx.AutoMigrate(&domain.Order{}).Error
+				err := tx.AutoMigrate(&domain.PalettesProducts{}).Error
 				if err != nil {
 					return err
 				}
