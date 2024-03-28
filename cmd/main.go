@@ -45,12 +45,12 @@ func main() {
 		orders = append(orders, *orderEntity)
 	}
 
-	//for _, value := range orders {
-	//	err = repository.NewRepo().CheckAndUpdateOPalette(value.productID, value.count, value.orderID)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//}
+	for _, value := range orders {
+		err = repository.NewRepo().CheckAndUpdateOPalette(value.productID, value.count, value.orderID)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	repository.NewRepo().TakeOrders(argsOrders)
 }
