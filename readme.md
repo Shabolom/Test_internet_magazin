@@ -9,6 +9,13 @@ ____
 ```go
 go get ./..
 ```
+___
+# Для запуска миграции с помощью migrate go.
+
+**Миграция:**
+```go
+migrate -source file://migrations -database postgresql://postgres:1234@localhost:5432/Uchoba?sslmode=disable 
+```
 ____
 # Подключение к DB и настройка миграций.
 
