@@ -486,7 +486,7 @@ func (r *Repository2) AssemblingOrder(ordersID []int) error {
 ```
 Пример ответа консоли.
 
-![схема бв.png]()
+![схема бв.png](https://github.com/Shabolom/Test_internet_magazin/blob/main/схема_бд2.png)
 
 ----
 # **Схема DB Gorm**
