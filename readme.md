@@ -491,4 +491,4 @@ func (r *Repository2) AssemblingOrder(ordersID []int) error {
 ----
 # **Схема DB Gorm**
 
-![схема бв.png](https://github.com/Shabolom/Test_internet_magazin/blob/main/схема%20бв.png)
+![схема бв.png](https://github.com/Shabolom/Test_internet_magazin/blob/main/схема_бд2.png)
