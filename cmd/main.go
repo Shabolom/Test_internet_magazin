@@ -4,7 +4,6 @@ import (
 	"Arkadiy_2Service/config"
 	"Arkadiy_2Service/iternal/repository"
 	"Arkadiy_2Service/tools"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
@@ -37,15 +36,15 @@ func main() {
 		argsOrders = append(argsOrders, orderID)
 	}
 
-	err = repository.NewRepo2().CheckAndUpdateOPalette(22, 2, 1)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	//err = repository.NewRepo2().AssemblingOrder([]int{1, 2, 3})
+	//err = repository.NewRepo2().CheckAndUpdateOPalette(3, 4, 1)
 	//if err != nil {
-	//	println(err.Error())
+	//	fmt.Println(err)
 	//}
+
+	err = repository.NewRepo2().AssemblingOrder([]int{1, 2, 3})
+	if err != nil {
+		println(err.Error())
+	}
 
 	//or := [][]int{{1, 2, 10}, {3, 1, 10}, {6, 1, 10}, {1, 3, 11}, {1, 3, 14}, {4, 4, 14}, {5, 1, 15}}
 	//for _, ord := range or {

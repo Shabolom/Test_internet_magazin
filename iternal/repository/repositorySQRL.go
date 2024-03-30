@@ -5,6 +5,7 @@ import (
 	"Arkadiy_2Service/iternal/model"
 	"Arkadiy_2Service/tools"
 	"context"
+	"errors"
 	"fmt"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -27,7 +28,8 @@ func (r *Repository2) AssemblingOrder(ordersID []int) error {
 
 	for _, orderID := range ordersID {
 
-		sql, args, err := config.Sq.Select("op.product_id", "o.id", "p.name", "op.product_count", "pa.name").
+		sql, args, err := config.Sq.
+			Select("op.product_id", "o.id", "p.name", "op.product_count", "pa.name").
 			From("orders o").
 			Where("o.id = $1", orderID).
 			Join("orders_products op ON op.order_id = o.id").
@@ -69,17 +71,22 @@ func (r *Repository2) CheckAndUpdateOPalette(orderID, productID, count int) erro
 	if err != nil {
 		return err
 	}
+	if answer != true {
+		return errors.New("не хватает товара")
+	}
 
 	paletteCount, paletteID, answer, err := r.CheckPaletteCount(true, productID, count)
 	if err != nil {
+		fmt.Println(1)
 		return err
 	}
 
 	if answer != true {
-		for count != 0 {
 
+		if paletteCount > 0 {
 			err2 := r.UpdatePalette(paletteID, productID, paletteCount, paletteCount)
 			if err2 != nil {
+				fmt.Println(2)
 				return err2
 			}
 
@@ -91,24 +98,81 @@ func (r *Repository2) CheckAndUpdateOPalette(orderID, productID, count int) erro
 			})
 
 			count -= paletteCount
+		}
+
+		for count != 0 {
 
 			paletteCount, paletteID, answer, err = r.CheckPaletteCount(false, productID, count)
+
+			if answer == true {
+				err = r.UpdatePalette(paletteID, productID, paletteCount, count)
+				if err != nil {
+					fmt.Println(2)
+					return err
+				}
+
+				assembledOrder = append(assembledOrder, model.Order{
+					OrderID:   orderID,
+					Count:     count,
+					ProductID: productID,
+					PaletteID: paletteID,
+				})
+
+				count = 0
+
+				err = r.InsertOrder(orderID)
+				if err != nil {
+					fmt.Println(3)
+					return err
+				}
+
+				err = r.UpdateOrdersProducts(assembledOrder)
+				if err != nil {
+					fmt.Println(4)
+					return err
+				}
+
+				return nil
+			}
+
+			err = r.UpdatePalette(paletteID, productID, paletteCount, paletteCount)
+			if err != nil {
+				fmt.Println(2)
+				return err
+			}
+
+			assembledOrder = append(assembledOrder, model.Order{
+				OrderID:   orderID,
+				Count:     paletteCount,
+				ProductID: productID,
+				PaletteID: paletteID,
+			})
+
+			count -= paletteCount
 		}
-		return nil
 	}
+
 	err2 := r.UpdatePalette(paletteID, productID, paletteCount, count)
 	if err2 != nil {
+		fmt.Println(5)
 		return err2
 	}
 	assembledOrder = append(assembledOrder, model.Order{
 		OrderID:   orderID,
-		Count:     paletteCount,
+		Count:     count,
 		ProductID: productID,
 		PaletteID: paletteID,
 	})
 
-	err = r.InsertOrder(assembledOrder)
+	err2 = r.InsertOrder(orderID)
+	if err2 != nil {
+		fmt.Println(6)
+		return err2
+	}
+
+	err = r.UpdateOrdersProducts(assembledOrder)
 	if err != nil {
+		fmt.Println(7)
 		return err
 	}
 
@@ -121,10 +185,12 @@ func (r *Repository2) CheckPaletteCount(status bool, productID, orderCount int) 
 	var paletteID int
 
 	sql, args, err := config.Sq.
-		Select("pp.count", "pp.palette_id").
+		Select("pp.product_count", "pp.palette_id").
 		From("palettes_products pp").
-		Where("pp.product_id = $1 AND pp.palette_status = $2", productID, status).
-		GroupBy("pp.palette_id").
+		Where("pp.product_id = $1", productID).
+		Where("pp.palette_status = $2", status).
+		Where("pp.product_count > 0").
+		GroupBy("pp.palette_id", "pp.product_count").
 		ToSql()
 	if err != nil {
 		return 0, 0, false, err
@@ -134,9 +200,8 @@ func (r *Repository2) CheckPaletteCount(status bool, productID, orderCount int) 
 	if err != nil {
 		return 0, 0, false, err
 	}
-
 	for rows.Next() {
-		err = rows.Scan(&paletteID, &count)
+		err = rows.Scan(&count, &paletteID)
 		if err != nil {
 			return 0, 0, false, err
 		}
@@ -165,7 +230,6 @@ func (r *Repository2) UpdatePalette(paletteID, productID, paletteCount, sumReduc
 		return err
 	}
 
-	fmt.Println(sql)
 	rows, err := config.Pool.Query(ctx, sql, args...)
 
 	for rows.Next() {
@@ -179,30 +243,18 @@ func (r *Repository2) UpdatePalette(paletteID, productID, paletteCount, sumReduc
 	return nil
 }
 
-func (r *Repository2) InsertOrder(order []model.Order) error {
-	id := rand.New(rand.NewSource(time.Now().Unix())).Int()
+func (r *Repository2) InsertOrdersProducts(order model.Order) error {
+	id := rand.New(rand.NewSource(time.Now().Unix())).Int31()
 
-	for _, value := range order {
-		sql, args, err := config.Sq.
-			Insert("orders_products").
-			Columns("id", "order_id", "product_id", "palette_id", "product_count").
-			Values(id, value.OrderID, value.ProductID, value.PaletteID, value.Count).
-			ToSql()
-		if err != nil {
-			return err
-		}
-		rows, err := config.Pool.Query(ctx, sql, args...)
-
-		for rows.Next() {
-			err = rows.Scan()
-			if err != nil {
-				return err
-			}
-		}
-		defer rows.Close()
-
-		fmt.Println("товар ID: ", value.OrderID, " успешно занесен в базу.")
+	sql, args, err := config.Sq.
+		Insert("orders_products").
+		Columns("id", "order_id", "product_id", "palette_id", "product_count").
+		Values(id, order.OrderID, order.ProductID, order.PaletteID, order.Count).
+		ToSql()
+	if err != nil {
+		return err
 	}
+	_, err = config.Pool.Exec(ctx, sql, args...)
 
 	return nil
 }
@@ -213,24 +265,123 @@ func (r *Repository2) CheckSum(productID, count int) (bool, error) {
 	sql, args, err := config.Sq.
 		Select("SUM(pp.product_count)").
 		From("palettes_products pp").
-		Where("pp.product_id = 1$", productID).
+		Where("pp.product_id = $1", productID).
 		ToSql()
 	if err != nil {
 		return false, err
 	}
-	rows, err := config.Pool.Query(ctx, sql, args...)
 
-	for rows.Next() {
-		err = rows.Scan(&dbCount)
-		if err != nil {
-			return false, err
-		}
+	row := config.Pool.QueryRow(ctx, sql, args...)
+
+	err = row.Scan(&dbCount)
+	if err != nil {
+		return false, err
 	}
-	defer rows.Close()
 
 	if dbCount < count {
 		return false, nil
 	}
 
 	return true, nil
+}
+
+func (r *Repository2) InsertOrder(orderID int) error {
+	err := r.CheckOrder(orderID)
+	if err == nil {
+		return nil
+	}
+
+	sql, args, err := config.Sq.
+		Insert("orders").
+		Columns("id").
+		Values(orderID).
+		ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = config.Pool.Exec(ctx, sql, args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Repository2) UpdateOrdersProducts(order []model.Order) error {
+
+	for _, value := range order {
+		orderCount, err := r.CheckOrdersProducts(value.OrderID, value.ProductID, value.PaletteID)
+
+		if err != nil {
+			err2 := r.InsertOrdersProducts(value)
+			if err2 != nil {
+				return err2
+			}
+		} else {
+			orderCount += value.Count
+
+			sql, args, err2 := config.Sq.
+				Update("orders_products").
+				Set("product_count", orderCount).
+				Where("product_id = $2", value.ProductID).
+				Where("order_id = $3", value.OrderID).
+				Where("palette_id = $4", value.PaletteID).
+				ToSql()
+			if err2 != nil {
+				return err2
+			}
+			fmt.Println(sql, args)
+			_, err2 = config.Pool.Exec(ctx, sql, args...)
+			if err2 != nil {
+				return err2
+			}
+		}
+	}
+
+	fmt.Println("товар ID:", order[0].OrderID, " успешно занесен в базу.")
+	return nil
+}
+
+func (r *Repository2) CheckOrder(orderID int) error {
+	var id int
+	sql, args, err := config.Sq.
+		Select("o.id").
+		From("orders o").
+		Where("o.id = $1", orderID).
+		ToSql()
+
+	if err != nil {
+		return err
+	}
+
+	rows := config.Pool.QueryRow(ctx, sql, args...)
+	err = rows.Scan(&id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Repository2) CheckOrdersProducts(orderID, productID, paletteID int) (int, error) {
+	var count int
+	sql, args, err := config.Sq.
+		Select("op.product_count").
+		From("orders_products op").
+		Where("op.order_id = $1", orderID).
+		Where("op.product_id = $2", productID).
+		Where("op.palette_id = $3", paletteID).
+		ToSql()
+	if err != nil {
+		return 0, err
+	}
+
+	row := config.Pool.QueryRow(ctx, sql, args...)
+	err = row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
