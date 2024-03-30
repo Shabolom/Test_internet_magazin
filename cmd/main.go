@@ -25,7 +25,6 @@ func main() {
 	err := config.InitPgSQL()
 	if err != nil {
 		log.WithField("component", "initialization").Panic(err)
-		defer config.DB.Close()
 		defer config.Pool.Close()
 	}
 	//migrate.Migrate()

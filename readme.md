@@ -280,6 +280,215 @@ func Sort(orders [][]model.Assemblings) {
 
 }
 ```
-# **Схема DB**
+
+---
+# Заполнение BD при помощи squirrel.go и pgxpool.go
+
+**Подключение к базе данных при помощи pgxpool**
+```go
+// подключение к бд
+pool, err := pgxpool.Connect(context.Background(), connectionString)
+if err != nil {
+return err
+}
+```
+>connectionString представляет из себя строку подключения к базе данных.
+
+**Передаем настройки плейсхолдера для squirrel**
+>Тут мы определяем какой знак будет воспринимать генератор sql запороса для замены передоваемыми данными.
+
+```go
+// тут представлен плейсхолдер $1,$2...
+sqlBuilder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+```
+
+***Генирация sql запроса при помощи squirrel***
+
+Сам запрос строится согласно правилам sql.
+>Пример Select запроса с Join.
+
+```go
+sql, args, err := config.Sq.
+			Select("op.product_id", "o.id", "p.name", "op.product_count", "pa.name").
+			From("orders o").
+			Where("o.id = $1", orderID).
+			Join("orders_products op ON op.order_id = o.id").
+			Join("palettes pa ON op.palette_id = pa.id").
+			Join("products p ON op.product_id = p.id").
+			GroupBy("op.product_id, o.id, p.name, pa.name, op.product_count").
+			ToSql()
+		if err != nil {
+			return err
+		}
+```
+При выполнении функции мы получаем строку sql запроса которую нужно будет передать в обработчик sql запроса pgxpool, но тк у нас объявленны плейсхолдеры передаваемые значения будут "$1" в связи с чем обработчику необходимо передать так-же и аргументы.
+>пример sql строки ответа функции
+```go
+SELECT op.product_id, o.id, p.name, op.product_count, pa.name FROM orders o JOIN orders_products op ON op.order_id = o.id JOIN palettes pa ON op.palette_id = pa.id JOIN products p ON op.product_id = p.id WHERE o.id = $1 GROUP BY
+ op.product_id, o.id, p.name, pa.name, op.product_count
+```
+Пример передачи строки и аргуметов обработчику.
+```go
+// Pool.Query используется когда ожидается получение нескольких чтрок ответа для дальнейшей их обработки
+rows, err := config.Pool.Query(ctx, sql, args...)
+		if err != nil {
+			return err
+		}
+        // обработка по строчно ответов
+		for rows.Next() {
+			err = rows.Scan(&orderPart.ProductID, &orderPart.OrderID, &orderPart.ProductName, &orderPart.Count, &orderPart.Palette)
+			if err != nil {
+				return err
+			}
+			order = append(order, orderPart)
+		}
+		defer rows.Close()
+	}
+```
+
+----
+# Основные функции
+ 
+***При работе с squirrel***
++ Создание заказа
+> За создания заказа отвечает функция CheckAndUpdateOPalette она проверяет создан ли был ранее и обновляет его или создает. 
+```go
+func (r *Repository2) CheckAndUpdateOPalette(orderID, productID, count int) error {
+	var assembledOrder []model.Order
+
+	answer, err := r.CheckSum(productID, count)
+	if err != nil {
+		return err
+	}
+	if answer != true {
+		return errors.New("не хватает товара")
+	}
+
+	paletteCount, paletteID, answer, err := r.CheckPaletteCount(true, productID, count)
+	if err != nil {
+		fmt.Println(1)
+		return err
+	}
+
+	if answer != true {
+
+		if paletteCount > 0 {
+			err2 := r.UpdatePalette(paletteID, productID, paletteCount, paletteCount)
+			if err2 != nil {
+				fmt.Println(2)
+				return err2
+			}
+
+			assembledOrder = append(assembledOrder, model.Order{
+				OrderID:   orderID,
+				Count:     paletteCount,
+				ProductID: productID,
+				PaletteID: paletteID,
+			})
+
+			count -= paletteCount
+		}
+
+		for count != 0 {
+
+			paletteCount, paletteID, answer, err = r.CheckPaletteCount(false, productID, count)
+
+			if answer == true {
+				err = r.UpdatePalette(paletteID, productID, paletteCount, count)
+				if err != nil {
+					fmt.Println(2)
+					return err
+				}
+
+				assembledOrder = append(assembledOrder, model.Order{
+					OrderID:   orderID,
+					Count:     count,
+					ProductID: productID,
+					PaletteID: paletteID,
+				})
+
+				count = 0
+
+				err = r.InsertOrder(orderID)
+				if err != nil {
+					fmt.Println(3)
+					return err
+				}
+
+				err = r.UpdateOrdersProducts(assembledOrder)
+				if err != nil {
+					fmt.Println(4)
+					return err
+				}
+
+				return nil
+			}
+
+			err = r.UpdatePalette(paletteID, productID, paletteCount, paletteCount)
+			if err != nil {
+				fmt.Println(2)
+				return err
+			}
+
+			assembledOrder = append(assembledOrder, model.Order{
+				OrderID:   orderID,
+				Count:     paletteCount,
+				ProductID: productID,
+				PaletteID: paletteID,
+			})
+
+			count -= paletteCount
+		}
+	}
+```
++ Получение заказов
+>Получение заказов происходить при помощи AssemblingOrder 
+```go
+func (r *Repository2) AssemblingOrder(ordersID []int) error {
+	var orderPart model.Assemblings
+	var order []model.Assemblings
+
+	for _, orderID := range ordersID {
+
+		sql, args, err := config.Sq.
+			Select("op.product_id", "o.id", "p.name", "op.product_count", "pa.name").
+			From("orders o").
+			Where("o.id = $1", orderID).
+			Join("orders_products op ON op.order_id = o.id").
+			Join("palettes pa ON op.palette_id = pa.id").
+			Join("products p ON op.product_id = p.id").
+			GroupBy("op.product_id, o.id, p.name, pa.name, op.product_count").
+			ToSql()
+		if err != nil {
+			return err
+		}
+
+		dbQuerySpan.SetAttributes(attribute.String("sql.query", sql))
+		rows, err := config.Pool.Query(ctx, sql, args...)
+		if err != nil {
+			return err
+		}
+
+		for rows.Next() {
+			err = rows.Scan(&orderPart.ProductID, &orderPart.OrderID, &orderPart.ProductName, &orderPart.Count, &orderPart.Palette)
+			if err != nil {
+				return err
+			}
+			order = append(order, orderPart)
+		}
+		defer rows.Close()
+	}
+
+	tools.Sort(order)
+	defer dbQuerySpan.End()
+	return nil
+}
+```
+Пример ответа консоли.
+
+![схема бв.png]()
+
+----
+# **Схема DB Gorm**
 
 ![схема бв.png](https://github.com/Shabolom/Test_internet_magazin/blob/main/схема%20бв.png)

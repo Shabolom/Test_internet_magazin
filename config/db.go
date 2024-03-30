@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -11,7 +10,6 @@ import (
 )
 
 // DB сущность базы данных
-var DB *sql.DB
 var Sq squirrel.StatementBuilderType
 var Pool *pgxpool.Pool
 
@@ -34,15 +32,12 @@ func InitPgSQL() error {
 		return err
 	}
 
-	db, err := sql.Open("postgres", connectionString)
-
 	sqlBuilder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	if err != nil {
 		return err
 	}
 
-	DB = db
 	Pool = pool
 	Sq = sqlBuilder
 	return nil
