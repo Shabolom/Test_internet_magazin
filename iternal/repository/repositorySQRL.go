@@ -52,8 +52,6 @@ func (r *Repository2) AssemblingOrder(ordersID []int) error {
 			if err != nil {
 				return err
 			}
-			fmt.Println(rows.Values())
-
 			order = append(order, orderPart)
 		}
 		defer rows.Close()
