@@ -16,6 +16,11 @@ ___
 ```go
 migrate -source file://migrations -database postgresql://postgres:1234@localhost:5432/Uchoba?sslmode=disable 
 ```
+
+**Создание файла миграции**
+```go
+migrate create -ext sql -dir .\init\ -seq users  
+```
 ____
 # Подключение к DB и настройка миграций.
 
