@@ -4,6 +4,8 @@ import (
 	"Arkadiy_2Service/config"
 	"Arkadiy_2Service/iternal/repository"
 	"Arkadiy_2Service/tools"
+	"fmt"
+	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
@@ -34,13 +36,19 @@ func main() {
 		orderID, _ := strconv.Atoi(v)
 		argsOrders = append(argsOrders, orderID)
 	}
-
 	//err = repository.NewRepo2().CheckAndUpdateOPalette(3, 4, 1)
 	//if err != nil {
 	//	fmt.Println(err)
 	//}
 
-	err = repository.NewRepo2().AssemblingOrder([]int{1, 2, 3})
+	uui, err := uuid.FromString("")
+	fmt.Println(err)
+	fmt.Println(uui)
+	fmt.Println(uuid.Nil)
+
+	//repository.NewRepo2().GetAllOrders(1, 1)
+	//
+	err = repository.NewRepo2().AssemblingOrder([]int{3})
 	if err != nil {
 		println(err.Error())
 	}

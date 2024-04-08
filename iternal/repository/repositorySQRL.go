@@ -2,6 +2,7 @@ package repository
 
 import (
 	"Arkadiy_2Service/config"
+	"Arkadiy_2Service/iternal/domain"
 	"Arkadiy_2Service/iternal/model"
 	"Arkadiy_2Service/tools"
 	"context"
@@ -198,12 +199,14 @@ func (r *Repository2) CheckPaletteCount(status bool, productID, orderCount int) 
 	if err != nil {
 		return 0, 0, false, err
 	}
+
 	for rows.Next() {
 		err = rows.Scan(&count, &paletteID)
 		if err != nil {
 			return 0, 0, false, err
 		}
 	}
+
 	defer rows.Close()
 
 	if count < orderCount {
@@ -382,4 +385,32 @@ func (r *Repository2) CheckOrdersProducts(orderID, productID, paletteID int) (in
 	}
 
 	return count, nil
+}
+
+func (r *Repository2) GetAllOrders(page, elements uint64) error {
+	var order domain.OrdersProducts
+	offset := elements*page - elements
+
+	sql, args, err := config.Sq.
+		Select("op.order_id", "op.product_id", "op.product_count", "op.palette_id").
+		From("orders_products op").
+		OrderBy("op.order_id ASC").
+		Limit(elements).
+		Offset(offset).
+		ToSql()
+
+	rows, err := config.Pool.Query(ctx, sql, args...)
+	if err != nil {
+		return err
+	}
+
+	for rows.Next() {
+		err = rows.Scan(&order.OrderID, &order.ProductID, &order.Count, &order.PaletteID)
+		if err != nil {
+			return err
+		}
+	}
+	defer rows.Close()
+
+	return nil
 }
